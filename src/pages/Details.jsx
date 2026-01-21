@@ -1,86 +1,80 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import useGlobalReducer from "../hooks/useGlobalReducer.jsx";
-import Loading from "../components/Loading.jsx";
-import ErrorAlert from "../components/ErrorAlert.jsx";
-import DetailsHeader from "../components/DetailsHeader.jsx";
-import DetailsTable from "../components/DetailsTable.jsx";
-import CardImage from "../components/CardImage.jsx";
+
+const FALLBACK_IMG =
+  "https://res.cloudinary.com/dra2cr3uw/image/upload/v1765366742/IMAGEN_MUY_MUY_LEJANA_NO_DISPONIBLE_TEMPORALMENTE_pj0r6g.png";
+
+function imgUrl(type, uid) {
+  const folderMap = {
+    people: "characters",
+    characters: "characters",
+    planets: "planets",
+    vehicles: "vehicles",
+  };
+  const folder = folderMap[type] || type;
+
+  return `https://raw.githubusercontent.com/tbone849/star-wars-guide/master/build/assets/img/${folder}/${uid}.jpg`;
+}
 
 export default function Details() {
-  const { type, uid } = useParams(); // type: people|planets|vehicles
-  const { store, actions } = useGlobalReducer();
+  const { type, uid } = useParams();
+  const { actions } = useGlobalReducer();
 
-  const [details, setDetails] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [err, setErr] = useState(null);
-
-  const nameFromStore = useMemo(() => {
-    const list = store[type] || [];
-    const found = list.find((x) => String(x.uid) === String(uid));
-    return found?.name || `${type} ${uid}`;
-  }, [store, type, uid]);
-
-  const isFav = store.favorites.some((f) => f.type === type && String(f.uid) === String(uid));
+  const [details, setDetails] = useState(null);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    let alive = true;
     setLoading(true);
-    setErr(null);
+    setError(null);
 
     actions
       .getDetails(type, uid)
-      .then((props) => {
-        if (!alive) return;
-        setDetails(props);
-      })
-      .catch((e) => {
-        if (!alive) return;
-        setErr(e.message);
-      })
-      .finally(() => {
-        if (!alive) return;
-        setLoading(false);
-      });
+      .then((data) => setDetails(data))
+      .catch((e) => setError(String(e)))
+      .finally(() => setLoading(false));
+  }, [type, uid]);
 
-    return () => {
-      alive = false;
-    };
-  }, [actions, type, uid]);
+  if (loading) return <div className="container mt-4">Loading...</div>;
+  if (error) return <div className="container mt-4 alert alert-danger">{error}</div>;
 
-  if (loading) return <div className="container py-4"><Loading /></div>;
-  if (err) return <div className="container py-4"><ErrorAlert message={err} /></div>;
-  if (!details) return <div className="container py-4"><ErrorAlert message="No details found." /></div>;
+  const name = details?.properties?.name || details?.result?.properties?.name;
+
+  const props = details?.properties || details?.result?.properties || {};
 
   return (
-    <div className="container py-4">
-      <div className="card">
-        <div className="row g-0">
-          <div className="col-md-5">
-            <div className="p-3">
-              <CardImage type={type} uid={uid} name={nameFromStore} className="img-fluid rounded" />
-            </div>
+    <div className="container mt-4">
+      <div className="card p-3">
+        <div className="row g-3">
+          <div className="col-md-4">
+            <img
+              src={imgUrl(type, uid)}
+              className="img-fluid rounded"
+              alt={name || `${type} ${uid}`}
+              onError={(e) => {
+                e.currentTarget.onerror = null;
+                e.currentTarget.src = FALLBACK_IMG;
+              }}
+            />
           </div>
 
-          <div className="col-md-7">
-            <div className="p-4">
-              <DetailsHeader
-                title={nameFromStore}
-                subtitle={type === "people" ? "A person within the Star Wars universe" : `A ${type.slice(0, -1)} within the Star Wars universe`}
-                isFav={isFav}
-                onToggleFav={() => actions.toggleFavorite({ type, uid, name: nameFromStore })}
-              />
+          <div className="col-md-8">
+            <h1 className="mb-3">{name}</h1>
+            <hr />
 
-              <hr />
-
-              <DetailsTable data={details} />
-
-              <div className="mt-4">
-                <Link to="/" className="btn btn-outline-secondary">
-                  Back
-                </Link>
-              </div>
+            <div className="row">
+              {Object.entries(props).map(([k, v]) => (
+                <div className="col-md-6 mb-2" key={k}>
+                  <div className="small text-muted">{k.replaceAll("_", " ")}</div>
+                  <div className="fw-semibold">{String(v)}</div>
+                </div>
+              ))}
             </div>
+
+            <Link className="btn btn-outline-secondary mt-3" to="/">
+              Back
+            </Link>
           </div>
         </div>
       </div>

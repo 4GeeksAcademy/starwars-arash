@@ -11,6 +11,9 @@ export default function useGlobalReducer() {
 
     return {
       ...base,
+      setList: (type, items) => base.setList(type, items),
+      setFavorites: (items) =>
+        dispatch({ type: "SET_FAVORITES", payload: items }),
       addFavorite: (fav) => base.addFavorite(fav, getStore),
       removeFavorite: (type, uid) => base.removeFavorite(type, uid, getStore),
       toggleFavorite: (fav) => base.toggleFavoriteSafe(fav, getStore)

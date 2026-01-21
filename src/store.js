@@ -4,8 +4,7 @@ export const initialStore = () => ({
   people: [],
   planets: [],
   vehicles: [],
-  favorites: [], // { type: "people"|"planets"|"vehicles", uid: "1", name: "Luke..." }
-
+  favorites: [],
   loading: false,
   error: null
 });
@@ -36,8 +35,11 @@ async function jsonFetch(url, options = {}) {
 
 export const storeActions = (dispatch) => {
   const actions = {
+    setList: (type, items) => {
+      dispatch({ type: "SET_LIST", payload: { key: type, items } });
+    },
+
     loadList: async (type) => {
-      // type: "people" | "planets" | "vehicles"
       dispatch({ type: "SET_LOADING", payload: true });
       try {
         const data = await jsonFetch(`${API_BASE}/${type}`);
@@ -54,24 +56,23 @@ export const storeActions = (dispatch) => {
     },
 
     loadAll: async () => {
-      await Promise.all([actions.loadList("people"), actions.loadList("planets"), actions.loadList("vehicles")]);
+      await Promise.all([
+        actions.loadList("people"),
+        actions.loadList("planets"),
+        actions.loadList("vehicles")
+      ]);
     },
 
     getDetails: async (type, uid) => {
-      // returns only the properties object
       const data = await jsonFetch(`${API_BASE}/${type}/${uid}`);
       return data?.result?.properties || null;
     },
 
-    toggleFavorite: (fav) => {
-      // fav: {type, uid, name}
-      dispatch((prev) => prev); // no-op agar  reducer doesn't support function dispatch, oke ke ignore konim
-      
-    },
-
     addFavorite: (fav, getStore) => {
       const store = getStore();
-      const exists = store.favorites.some((f) => f.type === fav.type && String(f.uid) === String(fav.uid));
+      const exists = store.favorites.some(
+        (f) => f.type === fav.type && f.uid === String(fav.uid)
+      );
       if (exists) return;
 
       const next = [...store.favorites, { ...fav, uid: String(fav.uid) }];
@@ -80,13 +81,17 @@ export const storeActions = (dispatch) => {
 
     removeFavorite: (type, uid, getStore) => {
       const store = getStore();
-      const next = store.favorites.filter((f) => !(f.type === type && String(f.uid) === String(uid)));
+      const next = store.favorites.filter(
+        (f) => !(f.type === type && f.uid === String(uid))
+      );
       dispatch({ type: "SET_FAVORITES", payload: next });
     },
 
     toggleFavoriteSafe: (fav, getStore) => {
       const store = getStore();
-      const exists = store.favorites.some((f) => f.type === fav.type && String(f.uid) === String(fav.uid));
+      const exists = store.favorites.some(
+        (f) => f.type === fav.type && f.uid === String(fav.uid)
+      );
       if (exists) actions.removeFavorite(fav.type, fav.uid, getStore);
       else actions.addFavorite(fav, getStore);
     }
